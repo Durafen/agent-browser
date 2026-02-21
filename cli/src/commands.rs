@@ -311,6 +311,25 @@ fn parse_command_inner(args: &[String], flags: &Flags) -> Result<Value, ParseErr
                     nav_cmd["iosDevice"] = json!(device);
                 }
             }
+            // Parse --wait-until flag (load, domcontentloaded, networkidle)
+            let mut i = 1;
+            while i < rest.len() {
+                match rest[i] {
+                    "--wait-until" => {
+                        if let Some(val) = rest.get(i + 1) {
+                            nav_cmd["waitUntil"] = json!(val);
+                            i += 1;
+                        } else {
+                            return Err(ParseError::MissingArguments {
+                                context: "open --wait-until".to_string(),
+                                usage: "open <url> --wait-until <load|domcontentloaded|networkidle>",
+                            });
+                        }
+                    }
+                    _ => {}
+                }
+                i += 1;
+            }
             Ok(nav_cmd)
         }
         "back" => Ok(json!({ "id": id, "action": "back" })),

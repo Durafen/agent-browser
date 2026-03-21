@@ -1708,10 +1708,31 @@ fn launch_options_from_env() -> LaunchOptions {
             .unwrap_or(false),
         args: env::var("AGENT_BROWSER_ARGS")
             .map(|v| {
-                v.split([',', '\n'])
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect()
+                // Split on comma or newline only when followed by '--',
+                // so commas inside values (e.g. GPU renderer strings) are preserved.
+                let mut result: Vec<String> = Vec::new();
+                let mut current = String::new();
+                let chars: Vec<char> = v.chars().collect();
+                let len = chars.len();
+                let mut i = 0;
+                while i < len {
+                    let c = chars[i];
+                    if (c == ',' || c == '\n') && i + 1 < len && chars[i + 1] == '-' && i + 2 < len && chars[i + 2] == '-' {
+                        let trimmed = current.trim().to_string();
+                        if !trimmed.is_empty() {
+                            result.push(trimmed);
+                        }
+                        current = String::new();
+                    } else {
+                        current.push(c);
+                    }
+                    i += 1;
+                }
+                let trimmed = current.trim().to_string();
+                if !trimmed.is_empty() {
+                    result.push(trimmed);
+                }
+                result
             })
             .unwrap_or_default(),
         extensions,

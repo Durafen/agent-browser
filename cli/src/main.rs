@@ -1116,12 +1116,30 @@ fn main() {
         }
 
         if let Some(ref a) = flags.args {
-            // Parse args (comma or newline separated)
-            let args_vec: Vec<String> = a
-                .split(&[',', '\n'][..])
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect();
+            // Split on comma or newline only when followed by '--',
+            // so commas inside values (e.g. GPU renderer strings) are preserved.
+            let mut args_vec: Vec<String> = Vec::new();
+            let mut current = String::new();
+            let chars: Vec<char> = a.chars().collect();
+            let len = chars.len();
+            let mut i = 0;
+            while i < len {
+                let c = chars[i];
+                if (c == ',' || c == '\n') && i + 2 < len && chars[i + 1] == '-' && chars[i + 2] == '-' {
+                    let trimmed = current.trim().to_string();
+                    if !trimmed.is_empty() {
+                        args_vec.push(trimmed);
+                    }
+                    current = String::new();
+                } else {
+                    current.push(c);
+                }
+                i += 1;
+            }
+            let trimmed = current.trim().to_string();
+            if !trimmed.is_empty() {
+                args_vec.push(trimmed);
+            }
             cmd_obj.insert("args".to_string(), json!(args_vec));
         }
 

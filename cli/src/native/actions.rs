@@ -3275,8 +3275,8 @@ async fn poll_until_true(
     let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_millis(timeout_ms);
 
     loop {
-        let result: super::cdp::types::EvaluateResult = client
-            .send_command_typed(
+        match client
+            .send_command_typed::<super::cdp::types::EvaluateParams, super::cdp::types::EvaluateResult>(
                 "Runtime.evaluate",
                 &super::cdp::types::EvaluateParams {
                     expression: expression.to_string(),
@@ -3285,16 +3285,23 @@ async fn poll_until_true(
                 },
                 Some(session_id),
             )
-            .await?;
-
-        if result
-            .result
-            .value
-            .as_ref()
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false)
+            .await
         {
-            return Ok(());
+            Ok(result) => {
+                if result
+                    .result
+                    .value
+                    .as_ref()
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false)
+                {
+                    return Ok(());
+                }
+            }
+            Err(e) if e.contains("timed out") || e.contains("context") || e.contains("Target closed") => {
+                // Transient: CDP timeout while JS thread blocked, or context destroyed during navigation
+            }
+            Err(e) => return Err(e),
         }
 
         if tokio::time::Instant::now() >= deadline {
